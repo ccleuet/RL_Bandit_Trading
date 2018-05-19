@@ -24,38 +24,82 @@ class QuandlEnvSrc(object):
 
   Name = "FSE/BOSS_X" # https://www.quandl.com/search (use 'Free' filter)
 
-  Siemens="FSE/SIE_X"
-  Volkswagen="FSE/VOW3_X"
-  Continental="FSE/CON_X"
-  Hugo_Boss="FSE/BOSS_X"
-  Daimler="FSE/DAI_X"
+  #Siemens="FSE/SIE_X"
+  #Volkswagen="FSE/VOW3_X"
+  #Continental="FSE/CON_X"
+  #Hugo_Boss="FSE/BOSS_X"
+  #Daimler="FSE/DAI_X"
 
   def __init__(self, days=252, name=Name, scale=True ):
-    self.name = name
-    self.days = days+1
-    log.info('getting data for %s from Quandl...',QuandlEnvSrc.Name)
-    df = quandl.get(self.name)
-    log.info('got data for %s from Quandl...',QuandlEnvSrc.Name)
-    
-    # we calculate returns and percentiles, then kill nans
-    df = df[['Close','Traded Volume','High','Low']]   
-    df['Traded Volume'].replace(0,1,inplace=True) # days shouldn't have zero volume..
 
-    return_column = (df['Close']-df['Close'].shift())/df.Close.shift() 
-    df.insert(loc=2,column='Return',value=return_column) #Price evolution in Percent
+    self.days = days + 1
+
+    print "==== Franfurt Stock Exchange ===="
+    print ""
+    print "getting data for Siemens from Quandl..."
+    dSiemens = quandl.get("FSE/SIE_X")
+    print "got data for Siemens from Quandl"
+    print ""
+    print "getting data for Volkswagen from Quandl..."
+   # dVolkswagen = quandl.get("FSE/VOW3_X")
+    dVolkswagen = dSiemens
+    print "got data for Volkswagen from Quandl"
+    print ""
+    print "getting data for Hugo Boss from Quandl..."
+   # dHugo_Boss= quandl.get("FSE/BOSS_X")
+    dHugo_Boss= dSiemens
+    print "got data for Hugo Boss from Quandl"
+
+    # we calculate returns and percentiles, then kill nans
+    df1=pd.DataFrame()
+
+    df1 = dSiemens[['Close','Traded Volume','High','Low']]   
+    df2 = dVolkswagen[['Close','Traded Volume','High','Low']]   
+    df3 = dHugo_Boss[['Close','Traded Volume','High','Low']]   
+
+    df1['Traded Volume'].replace(0,1,inplace=True) # days shouldn't have zero volume..
+    df2['Traded Volume'].replace(0,1,inplace=True) 
+    df3['Traded Volume'].replace(0,1,inplace=True) 
+
+    return_column = (df1['Close']-df1['Close'].shift())/df1.Close.shift() 
+    df1.insert(loc=2,column='Return',value=return_column) #Price evolution in Percent
+    return_column = (df2['Close']-df2['Close'].shift())/df2.Close.shift() 
+    df2.insert(loc=2,column='Return',value=return_column) #Price evolution in Percent
+    return_column = (df3['Close']-df3['Close'].shift())/df3.Close.shift() 
+    df3.insert(loc=2,column='Return',value=return_column) #Price evolution in Percent
 
     pctrank = lambda x: pd.Series(x).rank(pct=True).iloc[-1]
-    df['Close Percentile rank'] = df['Close'].expanding(self.MinPercentileDays).apply(pctrank)
-    df['Volume Percentile rank'] = df['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank)
 
-    df.dropna(axis=0,inplace=True) #Drop columns with Nan elements
+    df1['Close Percentile rank'] = df1['Close'].expanding(self.MinPercentileDays).apply(pctrank)
+    df1['Volume Percentile rank'] = df1['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank)
+    df2['Close Percentile rank'] = df2['Close'].expanding(self.MinPercentileDays).apply(pctrank)
+    df2['Volume Percentile rank'] = df2['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank)
+    df3['Close Percentile rank'] = df3['Close'].expanding(self.MinPercentileDays).apply(pctrank)
+    df3['Volume Percentile rank'] = df3['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank)
 
-    self.min_values = df.min(axis=0)
-    self.max_values = df.max(axis=0)
-    self.data = df
+    df1.dropna(axis=0,inplace=True) #Drop columns with Nan elements
+    df2.dropna(axis=0,inplace=True) 
+    df3.dropna(axis=0,inplace=True) 
+
+    self.min_values = df1.min(axis=0)
+    self.max_values = df1.max(axis=0)
+    self.min_values = df2.min(axis=0)
+    self.max_values = df2.max(axis=0)
+    self.min_values = df3.min(axis=0)
+    self.max_values = df3.max(axis=0)
+
+   #self.data = df1
     self.step = 0
-    print df
+    df=[df1,df2,df3]
+    self.data = df
     
+    print "------- Siemens -------"
+    #print df1
+    print "----- Volkswagen -----"
+    #print df2
+    print "----- Hugo_Boss -----"
+    #print df3
+  
   def reset(self):
     # we want contiguous data
     #self.idx = np.random.randint( low = 0, high=len(self.data.index)-self.days )
@@ -108,15 +152,18 @@ class TradingSim(object) :
 
     self.mkt_retrns[self.step] = retrn
     self.actions[self.step] = action
-    
+
+    #Cannot sell shares if number of shares =0
+    if action == 0 and self.shares[self.step-1]==0 :
+       action = 1
+
     self.trades[self.step] = action -1   
     self.shares[self.step] = self.shares[self.step-1] + action - 1
-    
+
     reward = self.action_reward
 
     self.mkt_nav[self.step] =  mkt_nav * (1 + self.mkt_retrns[self.step-1])
     self.navs[self.step] =  self.shares[self.step]* self.mkt_nav[self.step]
-#   self.action_reward[self.step] = self.navs[self.step]-self.navs[self.step-1]
     self.action_reward[self.step] = self.mkt_retrns[self.step]*((action - 1) + self.shares[self.step-1])
     self.total_reward[self.step] = self.total_reward[self.step-1]+self.action_reward[self.step]
     
