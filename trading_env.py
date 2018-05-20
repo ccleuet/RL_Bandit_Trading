@@ -34,7 +34,7 @@ class QuandlEnvSrc(object):
 
     self.days = days + 1
 
-    print "==== Franfurt Stock Exchange ===="
+    print "==== Frankfurt Stock Exchange ===="
     print ""
     print "getting data for Siemens from Quandl..."
     dSiemens = quandl.get("FSE/SIE_X")
@@ -51,7 +51,6 @@ class QuandlEnvSrc(object):
     print "got data for Hugo Boss from Quandl"
 
     # we calculate returns and percentiles, then kill nans
-    df1=pd.DataFrame()
 
     df1 = dSiemens[['Close','Traded Volume','High','Low']]   
     df2 = dVolkswagen[['Close','Traded Volume','High','Low']]   
@@ -92,7 +91,7 @@ class QuandlEnvSrc(object):
     self.step = 0
     df=[df1,df2,df3]
     self.data = df
-    
+
     print "------- Siemens -------"
     #print df1
     print "----- Volkswagen -----"
@@ -106,8 +105,12 @@ class QuandlEnvSrc(object):
     self.idx=0;
     self.step = 0
 
-  def _step(self):    
-    obs = self.data.iloc[self.idx].as_matrix()
+  def _step(self): 
+    obs=[]   
+    obs.append(self.data[0].iloc[self.idx].as_matrix())
+    obs.append(self.data[1].iloc[self.idx].as_matrix())
+    obs.append(self.data[2].iloc[self.idx].as_matrix())
+
     self.idx += 1
     self.step += 1
     done = self.step >= self.days
@@ -123,21 +126,21 @@ class TradingSim(object) :
 
     # change every step
     self.step             = 0
-    self.actions          = np.zeros(self.steps)
-    self.navs             = np.ones(self.steps)
-    self.mkt_nav          = np.ones(self.steps)
-    self.action_reward    = np.ones(self.steps)
-    self.total_reward     = np.ones(self.steps)
-    self.posns            = np.zeros(self.steps)
-    self.shares           = np.ones(self.steps)
-    self.trades           = np.zeros(self.steps)
-    self.mkt_retrns       = np.zeros(self.steps)
+    self.actions          = np.zeros((self.steps,3))
+    self.navs             = np.ones((self.steps,3))
+    self.mkt_nav          = np.ones((self.steps,3))
+    self.action_reward    = np.ones((self.steps,3))
+    self.total_reward     = np.ones((self.steps,3))
+    self.posns            = np.zeros((self.steps,3))
+    self.shares           = np.ones((self.steps,3))
+    self.trades           = np.zeros((self.steps,3))
+    self.mkt_retrns       = np.zeros((self.steps,3))
     
   def reset(self):
     self.step = 0
     self.actions.fill(0)
-    self.navs.fill(1)
-    self.mkt_nav.fill(1)
+    self.navs.fill(0)
+    self.mkt_nav.fill(0)
     self.action_reward.fill(0)
     self.total_reward.fill(0)
     self.posns.fill(0)
@@ -150,21 +153,34 @@ class TradingSim(object) :
         etc and returns the reward and a  summary of the day's activity. """
     mkt_nav  = 1.0 if self.step == 0 else self.mkt_nav[self.step-1]
 
-    self.mkt_retrns[self.step] = retrn
-    self.actions[self.step] = action
+    self.mkt_retrns[self.step,0] =retrn[0]
+    self.mkt_retrns[self.step,1] =retrn[1]
+    self.mkt_retrns[self.step,2] =retrn[2]
+
+    if isinstance(action,int) == False:
+      self.actions[self.step,0] = action[0]
+      self.actions[self.step,1] = action[1]
+      self.actions[self.step,2] = action[2]
 
     #Cannot sell shares if number of shares =0
-    if action == 0 and self.shares[self.step-1]==0 :
-       action = 1
+    
+    #if action == 0 and self.shares[self.step-1]==0 :
+    #   action = 1
 
-    self.trades[self.step] = action -1   
-    self.shares[self.step] = self.shares[self.step-1] + action - 1
+      self.trades[self.step,0] = action[0] -1  
+      self.trades[self.step,1] = action[1] -1  
+      self.trades[self.step,2] = action[2] -1  
+
+      self.shares[self.step,0] = self.shares[self.step-1,0] + action[0] - 1
+      self.shares[self.step,1] = self.shares[self.step-1,1] + action[1] - 1
+      self.shares[self.step,2] = self.shares[self.step-1,2] + action[2] - 1
 
     reward = self.action_reward
 
-    self.mkt_nav[self.step] =  mkt_nav * (1 + self.mkt_retrns[self.step-1])
+    self.mkt_nav[self.step]=mkt_nav * (1 + self.mkt_retrns[self.step-1][0])
+
     self.navs[self.step] =  self.shares[self.step]* self.mkt_nav[self.step]
-    self.action_reward[self.step] = self.mkt_retrns[self.step]*((action - 1) + self.shares[self.step-1])
+    self.action_reward[self.step] = self.mkt_retrns[self.step][0]*(action-1)
     self.total_reward[self.step] = self.total_reward[self.step-1]+self.action_reward[self.step]
     
     info = { 'reward': reward, 'nav':self.navs[self.step]}
@@ -175,14 +191,14 @@ class TradingSim(object) :
   def to_df(self):
     cols = ['action','trade','total_shares','nav','mkt_nav','mkt_return','action_reward','total_reward']
     df = pd.DataFrame( {
-                          'action':     self.actions, # today's action (from agent)
-                          'trade':  self.trades,
-                          'total_shares': self.shares,
-                          'nav':    self.navs,    #  Net Asset Value (NAV)
-                          'mkt_nav':  self.mkt_nav, 
-                          'mkt_return': self.mkt_retrns,
-                          'action_reward': self.action_reward,
-                          'total_reward': self.total_reward,
+                          'action':     self.actions[:,0], # today's action (from agent)
+                          'trade':  self.trades[:,0],
+                          'total_shares': self.shares[:,0],
+                          'nav':    self.navs[:,0],    #  Net Asset Value (NAV)
+                          'mkt_nav':  self.mkt_nav[:,0], 
+                          'mkt_return': self.mkt_retrns[:,0],
+                          'action_reward': self.action_reward[:,0],
+                          'total_reward': self.total_reward[:,0],
                        },# eod trade
                          columns=cols)
     return df
@@ -226,9 +242,14 @@ class TradingEnv(gym.Env):
     return [seed]
 
   def _step(self, action):
-    assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
+#    assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
     observation, done = self.src._step()
-    yret = observation[2]
+
+    yret = []
+    yret.append(observation[0][2])
+    yret.append(observation[1][2])
+    yret.append(observation[2][2])
+
     reward, info = self.sim._step( action, yret )
 
     return observation, reward, done, info
@@ -254,7 +275,7 @@ class TradingEnv(gym.Env):
     observation = self.reset()
     done = False
     while not done:
-      action = np.random.randint( low = 0, high=3)
+      action = np.random.randint(3,size = 3)
       observation, reward, done, info = self.step(action)
     return self.sim.to_df() if return_df else None
       

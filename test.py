@@ -9,7 +9,7 @@ pd.set_option('display.width',500)
 
 env = gym.make('trading-v0')
 
-Episodes=2
+Episodes=1
 
 obs = []
 
