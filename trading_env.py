@@ -15,12 +15,12 @@ import tempfile
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 log.info('%s logger started.',__name__)
-
+pd.options.mode.chained_assignment= None
 class QuandlEnvSrc(object):
   ''' 
   Get Trading Data Source from Quandl
   '''
-  MinPercentileDays = 4700 #Min traded volume
+  MinPercentileDays = 100 #Min traded volume
 
   Name = "FSE/BOSS_X" # https://www.quandl.com/search (use 'Free' filter)
 
@@ -33,24 +33,15 @@ class QuandlEnvSrc(object):
   def __init__(self, days=252, name=Name, scale=True ):
 
     self.days = days + 1
-    print "========="
+    print "========================================="
     print "==== Frankfurt Stock Exchange - Data ===="
-    print "========="
-    print "getting data for Siemens from Quandl..."
+    print "========================================="
+
     dSiemens = quandl.get("FSE/SIE_X")
-    print "got data for Siemens from Quandl"
-    print "========="
-    print "getting data for Volkswagen from Quandl..."
-   # dVolkswagen = quandl.get("FSE/VOW3_X")
-    dVolkswagen = dSiemens
-    print "got data for Volkswagen from Quandl"
-    print "========="
-    print "getting data for Hugo Boss from Quandl..."
-   # dHugo_Boss= quandl.get("FSE/BOSS_X")
-    dHugo_Boss= dSiemens
-    print "got data for Hugo Boss from Quandl"
-    print "========="
-    # we calculate returns and percentiles, then kill nans
+    dVolkswagen = quandl.get("FSE/VOW3_X")
+    #dVolkswagen = dSiemens
+    dHugo_Boss= quandl.get("FSE/BOSS_X")
+    #dHugo_Boss= dSiemens
 
     df1 = dSiemens[['Close','Traded Volume','High','Low']]   
     df2 = dVolkswagen[['Close','Traded Volume','High','Low']]   
@@ -69,12 +60,15 @@ class QuandlEnvSrc(object):
 
     pctrank = lambda x: pd.Series(x).rank(pct=True).iloc[-1]
 
-    df1['Close Percentile rank'] = df1['Close'].expanding(self.MinPercentileDays).apply(pctrank)
-    df1['Volume Percentile rank'] = df1['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank)
-    df2['Close Percentile rank'] = df2['Close'].expanding(self.MinPercentileDays).apply(pctrank)
-    df2['Volume Percentile rank'] = df2['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank)
-    df3['Close Percentile rank'] = df3['Close'].expanding(self.MinPercentileDays).apply(pctrank)
-    df3['Volume Percentile rank'] = df3['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank)
+    df1.insert(loc=5,column='Close Percentile rank',value=df1['Close'].expanding(self.MinPercentileDays).apply(pctrank))
+    df1.insert(loc=6,column='Volume Percentile rank',value=df1['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank))
+
+    df2.insert(loc=5,column='Close Percentile rank',value=df2['Close'].expanding(self.MinPercentileDays).apply(pctrank))
+    df2.insert(loc=6,column='Volume Percentile rank',value=df2['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank))
+
+    df3.insert(loc=5,column='Close Percentile rank',value=df3['Close'].expanding(self.MinPercentileDays).apply(pctrank))
+    df3.insert(loc=6,column='Volume Percentile rank',value=df3['Traded Volume'].expanding(self.MinPercentileDays).apply(pctrank))
+
 
     df1.dropna(axis=0,inplace=True) #Drop columns with Nan elements
     df2.dropna(axis=0,inplace=True) 
@@ -87,17 +81,25 @@ class QuandlEnvSrc(object):
     self.min_values = df3.min(axis=0)
     self.max_values = df3.max(axis=0)
 
-   #self.data = df1
+    df1=df1.tail(100)
+    df2=df2.tail(100)
+    df3=df3.tail(100)
+
     self.step = 0
     df=[df1,df2,df3]
     self.data = df
-    print "========="
+    print "=================="
     print "===== Siemens ===="
-    #print df1
+    print "=================="
+    print df1
+    print "====================="
     print "===== Volkswagen ===="
-    #print df2
+    print "====================="    
+    print df2
+    print "===================="   
     print "===== Hugo Boss ===="
-    #print df3
+    print "===================="    
+    print df3
   
   def reset(self):
     # we want contiguous data

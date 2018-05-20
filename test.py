@@ -32,9 +32,9 @@ df = env.env.sim.to_df()
 buyhold = lambda x,y : 2
 df = env.env.run_strat_test( buyhold )
 
-print "========="
+print "=================="
 print "===== RESULTS ===="
-print "========="
+print "=================="
 print "===== Siemens ===="
 print df[0]
 print "===== Volkswagen ===="
