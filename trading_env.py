@@ -38,10 +38,10 @@ class QuandlEnvSrc(object):
     print "========================================="
 
     dSiemens = quandl.get("FSE/SIE_X")
-    dVolkswagen = quandl.get("FSE/VOW3_X")
-    #dVolkswagen = dSiemens
-    dHugo_Boss= quandl.get("FSE/BOSS_X")
-    #dHugo_Boss= dSiemens
+    #dVolkswagen = quandl.get("FSE/VOW3_X")
+    dVolkswagen = dSiemens
+    #dHugo_Boss= quandl.get("FSE/BOSS_X")
+    dHugo_Boss= dSiemens
 
     df1 = dSiemens[['Close','Traded Volume','High','Low']]   
     df2 = dVolkswagen[['Close','Traded Volume','High','Low']]   
