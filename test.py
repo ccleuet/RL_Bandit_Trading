@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import trading_env as te
 
-pd.set_option('display.width',500)
+pd.set_option('display.width',400)
 
 env = gym.make('trading-v0')
 
@@ -25,12 +25,21 @@ for _ in range(Episodes):
 
 df = env.env.sim.to_df()
 
-df.head()
-df.tail()
+#df.head()
+#df.tail()
 
 
 buyhold = lambda x,y : 2
 df = env.env.run_strat_test( buyhold )
-print df
+
+print "========="
+print "===== RESULTS ===="
+print "========="
+print "===== Siemens ===="
+print df[0]
+print "===== Volkswagen ===="
+print df[1]
+print "===== Hugo Boss ===="
+print df[2]
 #df10 = env.env.run_strats( buyhold, Episodes )
 #print df10

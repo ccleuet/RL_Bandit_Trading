@@ -33,23 +33,23 @@ class QuandlEnvSrc(object):
   def __init__(self, days=252, name=Name, scale=True ):
 
     self.days = days + 1
-
-    print "==== Frankfurt Stock Exchange ===="
-    print ""
+    print "========="
+    print "==== Frankfurt Stock Exchange - Data ===="
+    print "========="
     print "getting data for Siemens from Quandl..."
     dSiemens = quandl.get("FSE/SIE_X")
     print "got data for Siemens from Quandl"
-    print ""
+    print "========="
     print "getting data for Volkswagen from Quandl..."
    # dVolkswagen = quandl.get("FSE/VOW3_X")
     dVolkswagen = dSiemens
     print "got data for Volkswagen from Quandl"
-    print ""
+    print "========="
     print "getting data for Hugo Boss from Quandl..."
    # dHugo_Boss= quandl.get("FSE/BOSS_X")
     dHugo_Boss= dSiemens
     print "got data for Hugo Boss from Quandl"
-
+    print "========="
     # we calculate returns and percentiles, then kill nans
 
     df1 = dSiemens[['Close','Traded Volume','High','Low']]   
@@ -91,12 +91,12 @@ class QuandlEnvSrc(object):
     self.step = 0
     df=[df1,df2,df3]
     self.data = df
-
-    print "------- Siemens -------"
+    print "========="
+    print "===== Siemens ===="
     #print df1
-    print "----- Volkswagen -----"
+    print "===== Volkswagen ===="
     #print df2
-    print "----- Hugo_Boss -----"
+    print "===== Hugo Boss ===="
     #print df3
   
   def reset(self):
@@ -151,7 +151,9 @@ class TradingSim(object) :
   def _step(self, action, retrn ):
     """ Given an action and return for prior period, navs,
         etc and returns the reward and a  summary of the day's activity. """
-    mkt_nav  = 1.0 if self.step == 0 else self.mkt_nav[self.step-1]
+    mkt_nav_0  = 1.0 if self.step == 0 else self.mkt_nav[self.step-1,0]
+    mkt_nav_1  = 1.0 if self.step == 0 else self.mkt_nav[self.step-1,1]
+    mkt_nav_2  = 1.0 if self.step == 0 else self.mkt_nav[self.step-1,2]
 
     self.mkt_retrns[self.step,0] =retrn[0]
     self.mkt_retrns[self.step,1] =retrn[1]
@@ -164,8 +166,9 @@ class TradingSim(object) :
 
     #Cannot sell shares if number of shares =0
     
-    #if action == 0 and self.shares[self.step-1]==0 :
-    #   action = 1
+      if action[0] == 0 and self.shares[self.step-1,0]==0 : action[0] = 1
+      if action[1] == 0 and self.shares[self.step-1,1]==0 : action[1] = 1
+      if action[2] == 0 and self.shares[self.step-1,2]==0 : action[2] = 1
 
       self.trades[self.step,0] = action[0] -1  
       self.trades[self.step,1] = action[1] -1  
@@ -175,14 +178,24 @@ class TradingSim(object) :
       self.shares[self.step,1] = self.shares[self.step-1,1] + action[1] - 1
       self.shares[self.step,2] = self.shares[self.step-1,2] + action[2] - 1
 
+
+      self.mkt_nav[self.step,0]=mkt_nav_0 * (1 + self.mkt_retrns[self.step-1][0])
+      self.mkt_nav[self.step,1]=mkt_nav_1 * (1 + self.mkt_retrns[self.step-1][1])
+      self.mkt_nav[self.step,2]=mkt_nav_2 * (1 + self.mkt_retrns[self.step-1][2])
+
+      self.navs[self.step,0] =  self.shares[self.step,0]* self.mkt_nav[self.step,0]
+      self.navs[self.step,1] =  self.shares[self.step,1]* self.mkt_nav[self.step,1]
+      self.navs[self.step,2] =  self.shares[self.step,2]* self.mkt_nav[self.step,2]
+
+      self.action_reward[self.step,0] = self.mkt_retrns[self.step][0]*(action[0]-1)
+      self.action_reward[self.step,1] = self.mkt_retrns[self.step][1]*(action[1]-1)
+      self.action_reward[self.step,2] = self.mkt_retrns[self.step][2]*(action[2]-1)
+
+      self.total_reward[self.step,0] = self.total_reward[self.step-1,0]+self.action_reward[self.step,0]
+      self.total_reward[self.step,1] = self.total_reward[self.step-1,1]+self.action_reward[self.step,1]
+      self.total_reward[self.step,2] = self.total_reward[self.step-1,2]+self.action_reward[self.step,2]
+
     reward = self.action_reward
-
-    self.mkt_nav[self.step]=mkt_nav * (1 + self.mkt_retrns[self.step-1][0])
-
-    self.navs[self.step] =  self.shares[self.step]* self.mkt_nav[self.step]
-    self.action_reward[self.step] = self.mkt_retrns[self.step][0]*(action-1)
-    self.total_reward[self.step] = self.total_reward[self.step-1]+self.action_reward[self.step]
-    
     info = { 'reward': reward, 'nav':self.navs[self.step]}
 
     self.step += 1      
@@ -190,7 +203,8 @@ class TradingSim(object) :
 
   def to_df(self):
     cols = ['action','trade','total_shares','nav','mkt_nav','mkt_return','action_reward','total_reward']
-    df = pd.DataFrame( {
+
+    df0 = pd.DataFrame( {
                           'action':     self.actions[:,0], # today's action (from agent)
                           'trade':  self.trades[:,0],
                           'total_shares': self.shares[:,0],
@@ -201,6 +215,29 @@ class TradingSim(object) :
                           'total_reward': self.total_reward[:,0],
                        },# eod trade
                          columns=cols)
+    df1 = pd.DataFrame( {
+                          'action':     self.actions[:,1], # today's action (from agent)
+                          'trade':  self.trades[:,1],
+                          'total_shares': self.shares[:,1],
+                          'nav':    self.navs[:,1],    #  Net Asset Value (NAV)
+                          'mkt_nav':  self.mkt_nav[:,1], 
+                          'mkt_return': self.mkt_retrns[:,1],
+                          'action_reward': self.action_reward[:,1],
+                          'total_reward': self.total_reward[:,1],
+                       },# eod trade
+                         columns=cols)   
+    df2 = pd.DataFrame( {
+                          'action':     self.actions[:,2], # today's action (from agent)
+                          'trade':  self.trades[:,2],
+                          'total_shares': self.shares[:,2],
+                          'nav':    self.navs[:,2],    #  Net Asset Value (NAV)
+                          'mkt_nav':  self.mkt_nav[:,2], 
+                          'mkt_return': self.mkt_retrns[:,2],
+                          'action_reward': self.action_reward[:,2],
+                          'total_reward': self.total_reward[:,2],
+                       },# eod trade
+                         columns=cols)    
+    df=[df0,df1,df2]                                                 
     return df
 
 class TradingEnv(gym.Env):
