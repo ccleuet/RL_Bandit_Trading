@@ -13,24 +13,23 @@ Episodes=1
 
 obs = []
 
-for _ in range(Episodes):
-    observation = env.reset()
-    done = False
-    count = 0
-    while not done:
-        action = env.action_space.sample() # random
-        observation, reward, done, info = env.step(action)
-        obs = obs + [observation]
-        count += 1
+# for _ in range(Episodes):
+#     observation = env.reset()
+#     done = False
+#     count = 0
+#     while not done:
+#         action = env.action_space.sample() # random
+#         observation, reward, done, info = env.step(action)
+#         obs = obs + [observation]
+#         count += 1
 
-df = env.env.sim.to_df()
+# df = env.env.sim.to_df()
 
-#df.head()
-#df.tail()
+#buyhold=lambda x,y:2
+#df = env.env.run_strat(buyhold)
 
+df = env.env.epsilon_greedy( )
 
-buyhold = lambda x,y : 2
-df = env.env.run_strat_test( buyhold )
 
 print "=================="
 print "===== RESULTS ===="

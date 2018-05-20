@@ -243,30 +243,15 @@ class TradingSim(object) :
     return df
 
 class TradingEnv(gym.Env):
-  """This gym implements a simple trading environment for reinforcement learning.
+  """
 
-  The gym provides daily observations based on real market data pulled
-  from Quandl on, by default, the SPY etf. An episode is defined as 252
-  contiguous days sampled from the overall dataset. Each day is one
-  'step' within the gym and for each step, the algo has a choice:
-
-  SHORT (0)
-  FLAT (1)
-  LONG (2)
-
-  At the beginning of your episode, you are allocated 1 unit of
-  cash. This is your starting Net Asset Value (NAV). If your NAV drops
-  to 0, your episode is over and you lose. If your NAV hits 2.0, then
-  you win.
-
-  The trading env will track a buy-and-hold strategy which will act as
-  the benchmark for the game.
+  Sell (0)
+  Out of Market (1)
+  Buy(2)
 
   """
-  metadata = {'render.modes': ['human']}
-
   def __init__(self):
-    self.days = 10
+    self.days = 99
     self.src = QuandlEnvSrc(days=self.days)
     self.sim = TradingSim(steps=self.days)
     self.action_space = spaces.Discrete( 3 )
@@ -305,39 +290,50 @@ class TradingEnv(gym.Env):
     observation = self.reset()
     done = False
     while not done:
-      action = strategy( observation, self ) # call strategy
+      #action = strategy( observation, self ) # call strategy
+      action=[2,2,2]
       observation, reward, done, info = self.step(action)
     return self.sim.to_df() if return_df else None
+     
+  def run_strats( self, strategy, episodes=1, write_log=True, return_df=True):
+    alldf = None
+    for i in range(episodes):
+      df = self.run_strat(strategy, return_df=need_df)
+      if write_log:
+        df.to_csv(logfile, mode='a')
+        if return_df:
+          alldf = df if alldf is None else pd.concat([alldf,df], axis=0)          
+    return alldf
 
-  def run_strat_test(self,  strategy, return_df=True):
-    """run provided strategy, returns dataframe with all steps"""
+  def random_policy(self, return_df=True):
     observation = self.reset()
     done = False
     while not done:
       action = np.random.randint(3,size = 3)
       observation, reward, done, info = self.step(action)
     return self.sim.to_df() if return_df else None
-      
-  def run_strats( self, strategy, episodes=1, write_log=True, return_df=True):
-    """ run provided strategy the specified # of times, possibly
-        writing a log and possibly returning a dataframe summarizing activity.
-    
-        Note that writing the log is expensive and returning the df is moreso.  
-        For training purposes, you might not want to set both.
-    """
-    logfile = None
-    if write_log:
-      logfile = tempfile.NamedTemporaryFile(delete=False)
-      log.info('writing log to %s',logfile.name)
-      need_df = write_log or return_df
 
+  def epsilon_greedy(self,return_df=True,epsilon=0.1):
+    self.epsilon=epsilon
+    observation = self.reset()
+    done = False
+    while not done:
+      if np.random.random() < self.epsilon:
+           action = np.random.randint(3,size = 3)
+      else:
+          action=[1,1,1]
+          for i in range(0,3):
+             max_index = self.sim.to_df()[i].action_reward.idxmax(axis=1)
+             action[i]=int(self.sim.to_df()[i].action[max_index])
+      observation, reward, done, info = self.step(action)
+    return self.sim.to_df() if return_df else None  
+
+  def run(self, strategy, episodes, write_log=True, return_df=True):
     alldf = None
-        
     for i in range(episodes):
       df = self.run_strat(strategy, return_df=need_df)
       if write_log:
         df.to_csv(logfile, mode='a')
         if return_df:
-          alldf = df if alldf is None else pd.concat([alldf,df], axis=0)
-            
-    return alldf
+          alldf = df if alldf is None else pd.concat([alldf,df], axis=0)          
+    return alldf    
