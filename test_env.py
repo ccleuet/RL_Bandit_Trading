@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import trading_env as te
 import matplotlib.pyplot as plt
+from collections import Counter
 
 pd.set_option('display.width',400)
 
@@ -29,20 +30,27 @@ obs = []
 #buyhold=lambda x,y:2
 #df = env.env.run_strat(buyhold)
 
-#df = env.env.epsilon_greedy( )
-dfall = env.env.run(10)
-print dfall
+df = env.env.epsilon_greedy()
+#dfall = env.env.run(10)
+#print dfall
+total_reward=df[0].action_reward+df[1].action_reward+df[2].action_reward
 
-plt.plot(dfall);plt.title('Episode Total Reward');plt.grid(True);plt.savefig("test.png");plt.show();
+#plt.plot(total_reward);
+#plt.title('Episode Total Reward');plt.grid(True);plt.savefig("test.png");plt.show();
+
+x = np.arange(3)
+plt.bar(x, height= [Counter(df[0].action)[2.0],Counter(df[1].action)[2.0],Counter(df[2].action)[2.0]])
+plt.xticks(x+.5, ['Siemens','Volkswagen','Hugo Boss']);
+plt.savefig("histo.png");plt.show();
 
 print "=================="
 print "===== RESULTS ===="
 print "=================="
 print "===== Siemens ===="
-#print df[0]
+print df[0]
 print "===== Volkswagen ===="
-#print df[1]
+print df[1]
 print "===== Hugo Boss ===="
-#print df[2]
+print df[2]
 #df10 = env.env.run_strats( buyhold, Episodes )
 #print df10

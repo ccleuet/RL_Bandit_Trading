@@ -11,6 +11,7 @@ import logging
 import pdb
 
 import tempfile
+import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -81,9 +82,9 @@ class QuandlEnvSrc(object):
     self.min_values = df3.min(axis=0)
     self.max_values = df3.max(axis=0)
 
-    df1=df1.tail(100)
-    df2=df2.tail(100)
-    df3=df3.tail(100)
+    df1=df1.tail(500)
+    df2=df2.tail(500)
+    df3=df3.tail(500)
 
     self.step = 0
     df=[df1,df2,df3]
@@ -251,7 +252,7 @@ class TradingEnv(gym.Env):
 
   """
   def __init__(self):
-    self.days = 99
+    self.days = 499
     self.src = QuandlEnvSrc(days=self.days)
     self.sim = TradingSim(steps=self.days)
     self.action_space = spaces.Discrete( 3 )
@@ -317,20 +318,40 @@ class TradingEnv(gym.Env):
     self.epsilon=epsilon
     observation = self.reset()
     done = False
+    self.episode_step=0
     while not done:
-      if np.random.random() < self.epsilon:
-           action = np.random.randint(3,size = 3)
+      if self.episode_step ==0 or np.random.random() < self.epsilon:
+           action=[1,1,1]
+           choice = np.random.randint(3)
+           action[choice]=2
       else:
           action=[1,1,1]
-          for i in range(0,3):
-             max_index = self.sim.to_df()[i].action_reward.idxmax(axis=1)
-             action[i]=int(self.sim.to_df()[i].action[max_index])
+          total_reward_i = self.sim.to_df()[0].total_reward[self.episode_step-1]
+          chosen_i=Counter(self.sim.to_df()[0].action)[2.0]
+          Q_max=0
+          choice=0
+          if chosen_i > 0 : 
+             Q_max=total_reward_i/chosen_i
+          else:
+             Q_max=total_reward_i           
+          for i in range(1,3):
+             total_reward_i = self.sim.to_df()[i].total_reward[self.episode_step-1]
+             chosen_i=Counter(self.sim.to_df()[i].action)[2.0]
+             if chosen_i > 0 :
+              Q_i=total_reward_i/chosen_i
+             else:
+              Q_i=total_reward_i
+             if Q_i >= Q_max:
+               Q_max=Q_i
+               choice=i 
+          action[choice]=2
+      self.episode_step=self.episode_step+1
       observation, reward, done, info = self.step(action)
     return self.sim.to_df() if return_df else None  
 
   def run(self, episodes, write_log=True, return_df=True):
     alldf = []
-    for i in range(episodes):
+    for i in range(1):
       df = self.epsilon_greedy()
       if return_df:
           total_reward=0.0
