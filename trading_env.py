@@ -38,10 +38,10 @@ class QuandlEnvSrc(object):
     print "========================================="
 
     dSiemens = quandl.get("FSE/SIE_X")
-    #dVolkswagen = quandl.get("FSE/VOW3_X")
-    dVolkswagen = dSiemens
-    #dHugo_Boss= quandl.get("FSE/BOSS_X")
-    dHugo_Boss= dSiemens
+    dVolkswagen = quandl.get("FSE/VOW3_X")
+    #dVolkswagen = dSiemens
+    dHugo_Boss= quandl.get("FSE/BOSS_X")
+    #dHugo_Boss= dSiemens
 
     df1 = dSiemens[['Close','Traded Volume','High','Low']]   
     df2 = dVolkswagen[['Close','Traded Volume','High','Low']]   
@@ -328,12 +328,13 @@ class TradingEnv(gym.Env):
       observation, reward, done, info = self.step(action)
     return self.sim.to_df() if return_df else None  
 
-  def run(self, strategy, episodes, write_log=True, return_df=True):
-    alldf = None
+  def run(self, episodes, write_log=True, return_df=True):
+    alldf = []
     for i in range(episodes):
-      df = self.run_strat(strategy, return_df=need_df)
-      if write_log:
-        df.to_csv(logfile, mode='a')
-        if return_df:
-          alldf = df if alldf is None else pd.concat([alldf,df], axis=0)          
+      df = self.epsilon_greedy()
+      if return_df:
+          total_reward=0.0
+          for i in range(0,3):
+            total_reward=total_reward + self.sim.to_df()[i].action_reward[98]
+          alldf.append(total_reward)         
     return alldf    
